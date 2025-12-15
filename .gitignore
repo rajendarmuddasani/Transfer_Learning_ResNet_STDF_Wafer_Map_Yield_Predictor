@@ -1,0 +1,133 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# PyCharm
+.idea/
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Data
+data/raw/*.stdf
+data/processed/*.parquet
+data/wafer_maps/**/*.png
+!data/wafer_maps/.gitkeep
+
+# Models
+models/checkpoints/**/*.pth
+models/checkpoints/**/*.pt
+models/onnx/**/*.onnx
+models/tensorrt/**/*.engine
+!models/checkpoints/.gitkeep
+!models/onnx/.gitkeep
+!models/tensorrt/.gitkeep
+
+# DVC
+.dvc/cache/
+*.dvc
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Logs
+logs/**/*.log
+logs/**/*.txt
+*.log
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# MinIO/S3
+.minio/
+
+# Redis
+dump.rdb
+
+# TensorBoard
+runs/
+tensorboard/
+
+# Weights & Biases
+wandb/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.next/
+frontend/.cache/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Secrets
+*.pem
+*.key
+secrets/
+credentials/
+
+# Large files
+*.zip
+*.tar.gz
+*.7z
+*.rar
+
+# Kubernetes secrets
+k8s/secrets/

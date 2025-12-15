@@ -1,0 +1,130 @@
+# Training Configuration
+training:
+  # Model Architecture
+  model:
+    architecture: "resnet18"  # resnet18 or resnet50
+    pretrained: true
+    num_classes: 8  # 8 defect types
+    input_size: 224  # 224x224 for ResNet
+    
+  # Progressive Fine-Tuning Phases
+  phases:
+    phase1:
+      name: "Freeze Backbone"
+      freeze_backbone: true
+      unfreeze_last_block: false
+      epochs: 2
+      learning_rate: 0.001
+      optimizer: "adamw"
+      weight_decay: 0.01
+      
+    phase2:
+      name: "Unfreeze Last Block"
+      freeze_backbone: false
+      unfreeze_last_block: true
+      epochs: 3
+      learning_rate: 0.0001  # Lower LR for fine-tuning
+      optimizer: "adamw"
+      weight_decay: 0.01
+      
+    phase3:
+      name: "Full Fine-Tuning"
+      freeze_backbone: false
+      unfreeze_last_block: false
+      epochs: 10
+      discriminative_lr: true
+      lr_layer1_2: 0.00001
+      lr_layer3: 0.00005
+      lr_layer4: 0.0001
+      lr_classifier: 0.001
+      optimizer: "adamw"
+      weight_decay: 0.01
+  
+  # Data Settings
+  data:
+    train_path: "data/wafer_maps/train"
+    val_path: "data/wafer_maps/val"
+    test_path: "data/wafer_maps/test"
+    batch_size: 32
+    num_workers: 4
+    pin_memory: true
+    
+  # Augmentation
+  augmentation:
+    train:
+      resize: 256
+      random_crop: 224
+      random_rotation: [0, 90, 180, 270]
+      horizontal_flip: 0.5
+      vertical_flip: 0.5
+      color_jitter:
+        brightness: 0.2
+        contrast: 0.2
+        saturation: 0.1
+        hue: 0.05
+      normalize:
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+    
+    val:
+      resize: 224
+      normalize:
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+  
+  # Loss Function
+  loss:
+    type: "cross_entropy"
+    label_smoothing: 0.1
+    class_weights: [1.0, 2.5, 1.8, 2.0, 3.0, 2.2, 1.5, 1.2]  # Inverse frequency weights
+  
+  # Optimization
+  scheduler:
+    type: "cosine_annealing"
+    T_max: 10
+    eta_min: 0.000001
+    warmup_epochs: 2
+  
+  # Mixed Precision Training
+  mixed_precision: true
+  gradient_accumulation_steps: 4
+  
+  # Early Stopping
+  early_stopping:
+    patience: 5
+    min_delta: 0.001
+    monitor: "val_accuracy"
+    mode: "max"
+  
+  # Checkpointing
+  checkpoint:
+    save_dir: "models/checkpoints"
+    save_top_k: 3
+    monitor: "val_accuracy"
+    mode: "max"
+    filename: "resnet18-{epoch:02d}-{val_accuracy:.4f}"
+  
+  # Logging
+  logging:
+    log_interval: 10  # Log every 10 batches
+    log_dir: "logs"
+    tensorboard: true
+    mlflow: true
+    wandb: false
+
+# MLflow Configuration
+mlflow:
+  tracking_uri: "http://localhost:5000"
+  experiment_name: "P02_Transfer_Learning_Yield_Predictor"
+  run_name_prefix: "resnet18_phase"
+  
+# Device Configuration
+device:
+  use_cuda: true
+  device_id: 0
+  num_gpus: 1
+  
+# Reproducibility
+seed: 42
+deterministic: true
+benchmark: false
