@@ -14,7 +14,7 @@ albumentations>=1.4.0
 
 # STDF Parsing
 pystdf>=1.0.0
-semi-ate-stdf>=1.2.0
+semi-ate-stdf>=0.1.0
 
 # Experiment Tracking
 mlflow>=2.12.0
