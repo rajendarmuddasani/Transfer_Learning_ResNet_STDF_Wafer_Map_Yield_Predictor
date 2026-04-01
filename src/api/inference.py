@@ -202,8 +202,6 @@ async def predict_wafer(
     Returns:
         Prediction results
     """
-    global _inference_engine
-    
     if _inference_engine is None:
         raise RuntimeError("Model not loaded. Call load_model() first.")
     
