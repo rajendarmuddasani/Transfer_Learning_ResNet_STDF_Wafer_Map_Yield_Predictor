@@ -29,7 +29,7 @@ ENV/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-*.ipynb
+# *.ipynb intentionally tracked (enriched demo notebooks)
 
 # PyCharm
 .idea/
@@ -46,6 +46,9 @@ data/wafer_maps/**/*.png
 
 # Models
 models/checkpoints/**/*.pth
+*.pth
+*.pkl
+data_shared/
 models/checkpoints/**/*.pt
 models/onnx/**/*.onnx
 models/tensorrt/**/*.engine
