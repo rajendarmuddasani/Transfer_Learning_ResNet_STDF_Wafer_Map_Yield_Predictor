@@ -1,4 +1,4 @@
--- P02 Yield Predictor Database Initialization
+-- STDF Wafer Map Yield Predictor Database Initialization
 
 -- Products Table
 CREATE TABLE IF NOT EXISTS products (

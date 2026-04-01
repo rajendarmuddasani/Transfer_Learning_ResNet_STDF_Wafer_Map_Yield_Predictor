@@ -22,7 +22,7 @@ function App() {
         <div className="app">
           <nav className="navbar">
             <div className="nav-brand">
-              <h1>P02 Yield Predictor</h1>
+              <h1>STDF Wafer Map Yield Predictor</h1>
             </div>
             <div className="nav-links">
               <a href="/">Dashboard</a>

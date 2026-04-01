@@ -1,0 +1,7 @@
+# Optional GPU-only dependencies for NVIDIA Linux environments.
+# Install these after requirements.txt when the required drivers and vendor runtimes are available.
+
+onnxruntime-gpu>=1.18.0
+tensorrt>=10.0.0
+py3nvml>=0.2.7
+gpustat>=1.1.0

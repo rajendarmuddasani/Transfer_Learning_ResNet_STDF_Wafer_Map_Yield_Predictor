@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Setup script for P02 Yield Predictor
+# Setup script for Transfer_Learning_ResNet_STDF_Wafer_Map_Yield_Predictor
 # Run this after cloning the repository
 
 set -e
 
 echo "======================================"
-echo "P02 Yield Predictor Setup"
+echo "Transfer_Learning_ResNet_STDF_Wafer_Map_Yield_Predictor Setup"
 echo "======================================"
 
 # Check Python version
@@ -63,11 +63,12 @@ echo ""
 echo "Next steps:"
 echo "1. Activate virtual environment: source venv/bin/activate"
 echo "2. Start services: docker-compose up -d"
-echo "3. Initialize database: docker-compose exec postgres psql -U p02user -d p02_yield_predictor -f /scripts/init_db.sql"
+echo "3. Initialize database: docker-compose exec postgres psql -U waferuser -d stdf_wafer_map_yield_predictor -f /docker-entrypoint-initdb.d/init.sql"
 echo "4. Start API: python -m src.api.main"
 echo "5. Start frontend: cd frontend && npm install && npm run dev"
 echo ""
-echo "For training:"
-echo "  ./scripts/train.sh --config config/train_config.yaml --phase 1"
+echo "Training artifacts and a verified training entrypoint are not currently included in this repo."
+echo "If you are targeting an NVIDIA runtime, install optional GPU extras with: pip install -r requirements-gpu.txt"
+echo "See the workspace pending assessment before claiming local training readiness."
 echo ""
 echo "Documentation: README.md"

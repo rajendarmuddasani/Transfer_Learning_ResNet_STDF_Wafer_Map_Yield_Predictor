@@ -222,7 +222,7 @@ async def predict_wafer(
     response = {
         "wafer_id": wafer_id,
         "prediction": {
-            "yield": 100.0 - (result['predicted_class'] * 10),  # Simplified yield calculation
+            "yield": None,  # STUB: yield regression not implemented — needs a separate model head
             "defect_class": predicted_class_name,
             "defect_probabilities": {
                 defect_classes[i]: float(result['probabilities'][i])
@@ -231,14 +231,15 @@ async def predict_wafer(
             "confidence": result['confidence'],
             "uncertainty": 1.0 - result['confidence']
         },
-        "model_version": "resnet18-v1.2",
+        "model_version": "placeholder",  # No trained model artifact exists yet
         "inference_time_ms": result['inference_time_ms'],
         "timestamp": datetime.now().isoformat()
     }
     
     # Add Grad-CAM if requested
     if include_gradcam:
-        response["grad_cam_url"] = f"https://minio.example.com/gradcam/{wafer_id}_{gradcam_layer}.png"
+        # STUB: Grad-CAM generation is not implemented; no URL to return
+        response["grad_cam_url"] = None
     
     return response
 
@@ -263,8 +264,8 @@ async def batch_predict(
     results = []
     for wafer_id in wafer_ids:
         try:
-            # Load wafer map (placeholder - would load from storage)
-            wafer_map = np.random.randint(0, 255, (300, 300, 3), dtype=np.uint8)
+            # STUB: actual wafer map loading from storage is not implemented
+            wafer_map = np.zeros((300, 300, 3), dtype=np.uint8)
             
             # Predict
             result = await predict_wafer(

@@ -4,18 +4,18 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: p02-postgres
+    container_name: stdf-wafer-map-yield-predictor-postgres
     environment:
-      POSTGRES_USER: p02user
-      POSTGRES_PASSWORD: p02password
-      POSTGRES_DB: p02_yield_predictor
+      POSTGRES_USER: waferuser
+      POSTGRES_PASSWORD: waferpassword
+      POSTGRES_DB: stdf_wafer_map_yield_predictor
     ports:
       - "5433:5432"  # Changed to avoid port conflict
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U p02user"]
+      test: ["CMD-SHELL", "pg_isready -U waferuser"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,7 +23,7 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: p02-redis
+    container_name: stdf-wafer-map-yield-predictor-redis
     ports:
       - "6380:6379"  # Changed to avoid port conflict
     volumes:
@@ -38,7 +38,7 @@ services:
   # MinIO Object Storage
   minio:
     image: minio/minio:latest
-    container_name: p02-minio
+    container_name: stdf-wafer-map-yield-predictor-minio
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin123
@@ -57,9 +57,9 @@ services:
   # MLflow Tracking Server
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.12.1
-    container_name: p02-mlflow
+    container_name: stdf-wafer-map-yield-predictor-mlflow
     environment:
-      MLFLOW_BACKEND_STORE_URI: postgresql://p02user:p02password@postgres:5432/p02_yield_predictor
+      MLFLOW_BACKEND_STORE_URI: postgresql://waferuser:waferpassword@postgres:5432/stdf_wafer_map_yield_predictor
       MLFLOW_ARTIFACT_ROOT: s3://mlflow
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin123
@@ -75,7 +75,7 @@ services:
       mlflow server
       --host 0.0.0.0
       --port 5000
-      --backend-store-uri postgresql://p02user:p02password@postgres:5432/p02_yield_predictor
+      --backend-store-uri postgresql://waferuser:waferpassword@postgres:5432/stdf_wafer_map_yield_predictor
       --default-artifact-root s3://mlflow
 
   # FastAPI Backend
@@ -83,9 +83,9 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-    container_name: p02-api
+    container_name: stdf-wafer-map-yield-predictor-api
     environment:
-      DATABASE_URL: postgresql://p02user:p02password@postgres:5432/p02_yield_predictor
+      DATABASE_URL: postgresql://waferuser:waferpassword@postgres:5432/stdf_wafer_map_yield_predictor
       REDIS_URL: redis://redis:6379
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: minioadmin
@@ -108,35 +108,22 @@ services:
       mlflow:
         condition: service_started
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
   # React Frontend
   frontend:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
-    container_name: p02-frontend
-    environment:
-      REACT_APP_API_URL: http://localhost:8000
+    container_name: stdf-wafer-map-yield-predictor-frontend
     ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend/src:/app/src
-      - ./frontend/public:/app/public
+      - "3000:80"
     depends_on:
       - api
-    command: npm run dev
 
   # Prometheus Monitoring
   prometheus:
     image: prom/prometheus:latest
-    container_name: p02-prometheus
+    container_name: stdf-wafer-map-yield-predictor-prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -148,29 +135,12 @@ services:
     depends_on:
       - api
 
-  # Grafana Dashboards
-  grafana:
-    image: grafana/grafana:latest
-    container_name: p02-grafana
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin123
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
-    depends_on:
-      - prometheus
-
 volumes:
   postgres_data:
   redis_data:
   minio_data:
   prometheus_data:
-  grafana_data:
 
 networks:
   default:
-    name: p02-network
+    name: stdf-wafer-map-yield-predictor-network

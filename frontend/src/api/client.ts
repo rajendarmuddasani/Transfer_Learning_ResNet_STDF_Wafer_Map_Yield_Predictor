@@ -1,5 +1,5 @@
 /**
- * API Client for P02 Yield Predictor
+ * API client for the STDF wafer map yield predictor frontend.
  */
 
 import axios from 'axios'

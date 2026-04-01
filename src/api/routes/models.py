@@ -35,27 +35,18 @@ class ModelPromoteRequest(BaseModel):
 @router.get("/models", response_model=List[ModelInfo])
 async def list_models():
     """List all available models."""
-    # Placeholder - query model registry
+    # STUB: no model registry is connected — returns placeholder entries
+    # Accuracy values are targets, NOT verified training results
     return [
         ModelInfo(
-            model_id="resnet18-v1.2",
-            model_name="ResNet-18 Transfer Learning (TC42x)",
+            model_id="resnet18-placeholder",
+            model_name="ResNet-18 Transfer Learning (placeholder)",
             architecture="resnet18",
-            version="v1.2",
-            stage="PRODUCTION",
-            accuracy=0.9245,
-            created_at="2025-11-15T14:20:00Z",
-            created_by="ml_engineer@example.com"
-        ),
-        ModelInfo(
-            model_id="resnet50-v2.0",
-            model_name="ResNet-50 Transfer Learning (Multi-Product)",
-            architecture="resnet50",
-            version="v2.0",
-            stage="STAGING",
-            accuracy=0.9387,
-            created_at="2025-12-01T09:15:00Z",
-            created_by="ml_engineer@example.com"
+            version="v0.0",
+            stage="NONE",
+            accuracy=None,
+            created_at="",
+            created_by=""
         )
     ]
 

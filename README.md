@@ -1,260 +1,126 @@
-# P02: Transfer Learning Test Yield Predictor
+# Transfer Learning ResNet STDF Wafer Map Yield Predictor
 
-Deep learning platform leveraging ResNet-based transfer learning to predict semiconductor wafer yield from wafer map images.
+End-to-end wafer yield prediction pipeline that converts raw STDF (Standard Test Data Format) binary files into wafer-map images and classifies defect patterns using transfer-learned ResNet models. Includes a FastAPI backend and React dashboard for real-time inference.
 
-## Project Overview
+## Problem
 
-This project uses pre-trained ResNet CNNs (ResNet-18/ResNet-50) with progressive fine-tuning to predict final test yield from wafer map images generated from STDF test data. Achieves >92% accuracy using only 5-10% of completed tests.
+Semiconductor test floors generate STDF binary files containing millions of per-die test results. Converting this raw data into actionable defect intelligence requires parsing binary records, reconstructing spatial wafer maps, and recognizing defect patterns — a workflow that is manual, slow, and error-prone. This project automates the full pipeline from binary STDF input to classified defect output.
 
-## Key Features
-
-- **Transfer Learning**: ImageNet → Semiconductor wafer maps
-- **Progressive Fine-Tuning**: 3-phase training (freeze backbone → unfreeze last block → full network)
-- **Wafer Map Generation**: Converts STDF files to 300x300 RGB wafer map images
-- **Defect Classification**: 8 defect types (EdgeEffect, CenterCluster, RingPattern, etc.)
-- **Grad-CAM Visualization**: Explainable AI showing prediction reasoning
-- **REST API**: FastAPI with batch prediction support
-- **Web UI**: React-based dashboard for visualization and monitoring
-
-## Project Structure
+## Pipeline
 
 ```
-P02_Transfer_Learning_Yield_Predictor/
-├── data/                          # Data storage
-│   ├── raw/                       # Raw STDF files
-│   ├── processed/                 # Processed parquet files
-│   └── wafer_maps/               # Generated wafer map images
-│       ├── train/
-│       ├── val/
-│       └── test/
-├── models/                        # Model artifacts
-│   ├── checkpoints/              # PyTorch checkpoints
-│   ├── onnx/                     # ONNX exported models
-│   └── tensorrt/                 # TensorRT optimized models
-├── src/                          # Source code
-│   ├── data/                     # Data processing modules
-│   ├── models/                   # Model training and inference
-│   ├── api/                      # FastAPI REST endpoints
-│   ├── utils/                    # Utility functions
-│   └── visualization/            # Plotting and Grad-CAM
-├── notebooks/                    # Jupyter notebooks for exploration
-├── tests/                        # Unit and integration tests
-├── scripts/                      # Training and deployment scripts
-├── frontend/                     # React web UI
-├── config/                       # Configuration files
-└── logs/                         # Training and inference logs
+STDF Binary File
+      │
+      ▼
+┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│ STDF Parser  │────▶│ Wafer Map Gen    │────▶│ ResNet Classifier │
+│ (binary→die  │     │ (die coords →    │     │ (ImageNet → wafer │
+│  records)    │     │  300×300 RGB)    │     │  fine-tuned)     │
+└──────────────┘     └──────────────────┘     └────────┬─────────┘
+                                                       │
+                                                       ▼
+                                              Defect Class + Yield
+                                              Prediction + Confidence
 ```
 
-## Technology Stack
+## Defect Pattern Classes
 
-### ML/DL Frameworks
-- PyTorch 2.3+ with torchvision
-- ONNX Runtime with TensorRT
-- MLflow for experiment tracking
-- DVC for data versioning
+| Class | Description |
+|-------|-------------|
+| Normal | No systematic defect pattern |
+| EdgeEffect | Die failures concentrated at wafer edge |
+| CenterCluster | Defect cluster near wafer center |
+| RingPattern | Concentric ring-shaped failure band |
+| QuadrantFailure | Failures localized to one quadrant |
+| Scratch | Linear scratch damage across wafer |
+| RandomFailure | Spatially random die failures |
+| MixedMode | Multiple overlapping defect signatures |
 
-### API & Backend
-- FastAPI 0.111+
-- Redis for caching
-- PostgreSQL 16+ for metadata
-- MinIO for object storage
+## Technical Approach
 
-### Frontend
-- React 18+ with TypeScript
-- Plotly for visualizations
-- React-Konva for wafer map canvas
+- **STDF parsing**: Custom binary parser extracts wafer ID, lot ID, die coordinates, hard bins, and soft bins from STDF v4 records
+- **Wafer map generation**: Die-level results mapped onto 300×300 RGB images with bin-to-color encoding
+- **Transfer learning**: ResNet-18/50 backbone pretrained on ImageNet, fine-tuned for 8-class wafer pattern classification
+- **Serving**: FastAPI with async prediction endpoints, model versioning, and health monitoring
 
-### Infrastructure
-- Docker & Kubernetes
-- Prometheus & Grafana for monitoring
-- NVIDIA GPU support (A10/A100)
+## Repository Structure
 
-## Getting Started
+```
+├── src/
+│   ├── api/              # FastAPI app, inference engine, routes
+│   ├── data/             # STDF parser, wafer map generator
+│   ├── models/           # ResNet transfer learning, dataset class
+│   └── utils/            # Config loader, logging
+├── config/               # API and training configuration
+├── docker/               # Dockerfiles for API and frontend
+├── frontend/             # React dashboard (Vite + TypeScript)
+├── scripts/              # Deployment and setup scripts
+├── requirements.txt
+└── docker-compose.yml
+```
 
-### Prerequisites
-- Python 3.10+
-- CUDA 12.4+ (for GPU support)
-- Docker 26.0+
-- Node.js 20+ (for frontend)
+## Setup
 
-### Installation
-
-1. Clone the repository and install dependencies:
 ```bash
-cd P02_Transfer_Learning_Yield_Predictor
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
-2. Download sample data (or place your STDF files in `data/raw/`):
+**Start the API:**
 ```bash
-python scripts/download_sample_data.py
+uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-3. Generate wafer maps from STDF files:
+**Start with Docker Compose (optional):**
 ```bash
-python scripts/generate_wafer_maps.py --input data/raw/ --output data/wafer_maps/
-```
-
-4. Train the model:
-```bash
-python scripts/train.py --config config/train_config.yaml
-```
-
-5. Start the API server:
-```bash
-uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-6. Launch the frontend:
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## Quick Start with Docker
-
-```bash
-# Build and start all services
 docker-compose up -d
-
-# Access the application
-# API: http://localhost:8000
-# Frontend: http://localhost:3000
-# MLflow: http://localhost:5000
 ```
 
-## API Usage
+## API Endpoints
 
-### Single Prediction
-```bash
-curl -X POST "http://localhost:8000/api/v1/predict" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -F "stdf_file=@wafer_W12345.stdf" \
-  -F "product_id=TC42x" \
-  -F "test_completion_pct=10.0"
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/predict` | Classify a single wafer (STDF file or image) |
+| POST | `/api/v1/predict/batch` | Submit batch prediction job |
+| GET | `/api/v1/models` | List available model versions |
+| GET | `/api/v1/health` | Service and model health check |
 
-### Batch Prediction
-```python
-import requests
+## Results (WM-811K Real Data)
 
-response = requests.post(
-    "http://localhost:8000/api/v1/predict/batch",
-    headers={"Authorization": f"Bearer {token}"},
-    json={"lot_id": "L12345"}
-)
-job_id = response.json()["job_id"]
-```
+Trained on 35,519 labeled wafers from the [WM-811K dataset](https://www.kaggle.com/datasets/qingyi/wm811k-wafer-map) using 3-phase progressive fine-tuning on a ResNet-18 backbone pretrained on ImageNet.
 
-## Model Training
+| Metric | Value |
+|--------|-------|
+| **Test Accuracy** | **89.0%** |
+| **Best Validation Accuracy** | 89.7% |
+| Dataset Split | 24,863 train / 5,327 val / 5,329 test |
+| Training Phases | Frozen head (5 ep) → Layer4 (5 ep) → Full (15 ep) |
+| ONNX Export | Validated, production-ready |
 
-### Progressive Fine-Tuning Phases
+### Per-Class Performance
 
-**Phase 1: Freeze Backbone (1-2 epochs)**
-```bash
-python scripts/train.py --phase 1 --freeze-backbone --epochs 2
-```
+| Defect Type | Precision | Recall | F1 Score | Support |
+|------------|-----------|--------|----------|---------|
+| Center | 96.6% | 94.8% | 95.7% | 652 |
+| Donut | 77.9% | 93.1% | 84.8% | 72 |
+| Edge-Loc | 90.6% | 88.2% | 89.4% | 821 |
+| Edge-Ring | 99.7% | 91.4% | 95.4% | 1,455 |
+| Loc | 83.9% | 79.2% | 81.5% | 528 |
+| Near-full | 62.5% | 55.6% | 58.8% | 18 |
+| Normal | 84.2% | 96.1% | 89.8% | 1,500 |
+| Random | 82.3% | 69.0% | 75.0% | 126 |
+| Scratch | 90.5% | 62.0% | 73.6% | 157 |
 
-**Phase 2: Unfreeze Last Block (2-3 epochs)**
-```bash
-python scripts/train.py --phase 2 --unfreeze-last-block --epochs 3
-```
+> Near-full and Scratch classes have fewer training samples (149 and 1,193 respectively), which limits per-class performance. GPU-scale training with advanced augmentation (Mixup, CutMix) would improve these.
 
-**Phase 3: Full Fine-Tuning (5-10 epochs)**
-```bash
-python scripts/train.py --phase 3 --full-finetuning --epochs 10
-```
+## Requirements
 
-### Monitor Training
-```bash
-# TensorBoard
-tensorboard --logdir logs/tensorboard
-
-# MLflow UI
-mlflow ui --host 0.0.0.0 --port 5000
-```
-
-## Data Format
-
-### Input: STDF Files
-- Standard Test Data Format (IEEE 1671)
-- Binary format, 5-50MB per wafer
-- Contains die coordinates (x, y) and bin assignments
-
-### Output: Wafer Maps
-- 300x300 RGB PNG images
-- PASS (green), FAIL (red/orange), NOTEST (gray)
-- Stored in MinIO with metadata in PostgreSQL
-
-## Model Performance
-
-| Metric | ResNet-18 | ResNet-50 |
-|--------|-----------|-----------|
-| Accuracy | 92.4% | 93.9% |
-| MAE (Yield) | 2.1% | 1.8% |
-| Inference Time | ~5ms | ~12ms |
-| Parameters | 11.7M | 25.6M |
-
-## Deployment
-
-### Production Deployment
-```bash
-# Build Docker images
-docker build -t p02-api:latest -f docker/Dockerfile.api .
-docker build -t p02-frontend:latest -f docker/Dockerfile.frontend .
-
-# Deploy to Kubernetes
-kubectl apply -f k8s/
-```
-
-### Model Promotion
-```bash
-# Promote model to production
-curl -X POST "http://localhost:8000/api/v1/models/resnet50-v2.0/promote" \
-  -H "Authorization: Bearer ADMIN_TOKEN" \
-  -d '{"target_stage": "PRODUCTION", "ab_test_duration_hours": 168}'
-```
-
-## Testing
-
-```bash
-# Unit tests
-pytest tests/unit/ -v
-
-# Integration tests
-pytest tests/integration/ -v
-
-# Load tests
-locust -f tests/load/locustfile.py --host http://localhost:8000
-```
-
-## Documentation
-
-- [PRD.md](PRD.md) - Complete product requirements
-- [API Documentation](http://localhost:8000/docs) - Interactive API docs (Swagger)
-- [Architecture Guide](docs/architecture.md) - System architecture details
-- [Training Guide](docs/training.md) - Detailed training instructions
-- [Deployment Guide](docs/deployment.md) - Production deployment steps
-
-## Key Metrics & KPIs
-
-- **Prediction Accuracy**: >92% on test set
-- **Test Time Reduction**: 30-40% via adaptive termination
-- **Cost Savings**: $5M+ annually
-- **Inference Latency**: <200ms (P95)
-- **API Throughput**: 1,000 requests/minute
-
-## Contributing
-
-This is an internal project. For feature requests or bug reports, contact the ML Engineering team.
+- Python 3.10+
+- PyTorch 2.x, ONNX Runtime
+- PostgreSQL 14+ (optional, for model metadata)
+- See `requirements.txt` for full list
 
 ## License
 
-Proprietary - Internal use only
-
-## Contact
-
-- **Product Owner**: ML Engineering Team
-- **Tech Lead**: [Your Name]
-- **Slack Channel**: #p02-yield-predictor
+MIT

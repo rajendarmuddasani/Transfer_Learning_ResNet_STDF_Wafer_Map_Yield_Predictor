@@ -2,7 +2,7 @@
 Prediction Routes
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -11,8 +11,8 @@ import logging
 from pathlib import Path
 import numpy as np
 
-from .inference import predict_wafer, batch_predict
-from ..data import parse_stdf_file, generate_wafer_map
+from ..inference import predict_wafer, batch_predict
+from ...data import parse_stdf_file, generate_wafer_map
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,7 @@ class BatchPredictionResponse(BaseModel):
 
 @router.post("/predict", response_model=PredictionResponse)
 async def predict_single(
+    request: Request,
     stdf_file: Optional[UploadFile] = File(None),
     wafer_map_image: Optional[UploadFile] = File(None),
     product_id: Optional[str] = None,
@@ -73,6 +74,16 @@ async def predict_single(
         raise HTTPException(
             status_code=400,
             detail="Either stdf_file or wafer_map_image must be provided"
+        )
+
+    if not getattr(request.app.state, "model_loaded", False):
+        raise HTTPException(
+            status_code=503,
+            detail=getattr(
+                request.app.state,
+                "startup_warning",
+                "Model artifact is not available in this checkout"
+            )
         )
     
     try:
@@ -122,12 +133,13 @@ async def predict_single(
         
     except Exception as e:
         logger.error(f"Prediction failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Prediction failed")
 
 
 @router.post("/predict/batch", response_model=BatchPredictionResponse)
 async def predict_batch(
-    request: BatchPredictionRequest,
+    http_request: Request,
+    batch_request: BatchPredictionRequest,
     background_tasks: BackgroundTasks
 ):
     """
@@ -137,10 +149,20 @@ async def predict_batch(
     """
     try:
         # Validate request
-        if not request.wafer_ids and not request.lot_id:
+        if not batch_request.wafer_ids and not batch_request.lot_id:
             raise HTTPException(
                 status_code=400,
                 detail="Either wafer_ids or lot_id must be provided"
+            )
+
+        if not getattr(http_request.app.state, "model_loaded", False):
+            raise HTTPException(
+                status_code=503,
+                detail=getattr(
+                    http_request.app.state,
+                    "startup_warning",
+                    "Model artifact is not available in this checkout"
+                )
             )
         
         # Generate job ID
@@ -149,11 +171,11 @@ async def predict_batch(
         job_id = f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
         
         # Get wafer list
-        if request.lot_id:
+        if batch_request.lot_id:
             # Query database for wafers in lot
-            wafer_ids = await get_wafers_in_lot(request.lot_id)
+            wafer_ids = await get_wafers_in_lot(batch_request.lot_id)
         else:
-            wafer_ids = request.wafer_ids
+            wafer_ids = batch_request.wafer_ids
         
         total_wafers = len(wafer_ids)
         estimated_time = total_wafers * 2  # 2 seconds per wafer estimate
@@ -163,8 +185,8 @@ async def predict_batch(
             batch_predict,
             job_id=job_id,
             wafer_ids=wafer_ids,
-            include_gradcam=request.include_gradcam,
-            model_version=request.model_version
+            include_gradcam=batch_request.include_gradcam,
+            model_version=batch_request.model_version
         )
         
         logger.info(f"Batch job submitted: {job_id}, {total_wafers} wafers")
@@ -179,7 +201,7 @@ async def predict_batch(
         
     except Exception as e:
         logger.error(f"Batch prediction submission failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Batch submission failed")
 
 
 @router.get("/jobs/{job_id}")
@@ -190,17 +212,17 @@ async def get_job_status(job_id: str):
     try:
         # Query job status from database/cache
         # Placeholder implementation
+        # STUB: no job tracking is implemented yet — returns placeholder data
         return {
             "job_id": job_id,
-            "status": "COMPLETED",
+            "status": "NOT_IMPLEMENTED",
             "progress": {
-                "completed": 10,
-                "total": 10,
-                "percentage": 100.0
+                "completed": 0,
+                "total": 0,
+                "percentage": 0.0
             },
             "results_url": f"/api/v1/results/{job_id}",
-            "created_at": "2025-12-06T10:30:00Z",
-            "completed_at": "2025-12-06T10:35:00Z"
+            "note": "Job tracking is not yet implemented"
         }
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
@@ -214,17 +236,12 @@ async def get_batch_results(job_id: str):
     try:
         # Retrieve results from database
         # Placeholder implementation
+        # STUB: no result storage is implemented yet
         return {
             "job_id": job_id,
-            "status": "COMPLETED",
-            "results": [
-                {
-                    "wafer_id": "W001",
-                    "yield_pred": 87.3,
-                    "defect_class": "EdgeEffect",
-                    "confidence": 0.92
-                }
-            ]
+            "status": "NOT_IMPLEMENTED",
+            "results": [],
+            "note": "Result storage is not yet implemented"
         }
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Results not found: {job_id}")

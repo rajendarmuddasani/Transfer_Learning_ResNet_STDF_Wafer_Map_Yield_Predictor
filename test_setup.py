@@ -1,5 +1,5 @@
 """
-Quick test script for P02 API
+Quick smoke test script for the STDF wafer map yield predictor.
 """
 
 import sys
@@ -115,7 +115,7 @@ async def test_api_creation():
 async def main():
     """Run all tests."""
     print("=" * 60)
-    print("P02 Yield Predictor - Quick Test Suite")
+    print("STDF Wafer Map Yield Predictor - Quick Smoke Test Suite")
     print("=" * 60)
     
     tests = [
@@ -144,7 +144,7 @@ async def main():
     print(f"\nTotal: {passed}/{total} tests passed")
     
     if passed == total:
-        print("\n🎉 All tests passed! The project is ready to use.")
+        print("\nAll smoke tests passed.")
         return 0
     else:
         print("\n⚠️  Some tests failed. Check the errors above.")

@@ -115,7 +115,7 @@ training:
 # MLflow Configuration
 mlflow:
   tracking_uri: "http://localhost:5000"
-  experiment_name: "P02_Transfer_Learning_Yield_Predictor"
+  experiment_name: "Transfer_Learning_ResNet_STDF_Wafer_Map_Yield_Predictor"
   run_name_prefix: "resnet18_phase"
   
 # Device Configuration

@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
 import time
+from pathlib import Path
 
 from .routes import predict, models, health
 from .middleware import rate_limiter
@@ -25,14 +26,26 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
     # Startup
-    logger.info("Starting P02 Yield Predictor API...")
+    logger.info("Starting Transfer_Learning_ResNet_STDF_Wafer_Map_Yield_Predictor API...")
     config = load_config("config/api_config.yaml")
     app.state.config = config
+    app.state.model_loaded = False
+    app.state.startup_warning = None
     
     # Load model on startup
     from .inference import load_model
-    app.state.model = load_model(config['model']['production_model_path'])
-    logger.info("Model loaded successfully")
+    model_path = Path(config["model"]["production_model_path"])
+
+    try:
+        app.state.model = load_model(str(model_path))
+        app.state.model_loaded = True
+        logger.info("Model loaded successfully")
+    except FileNotFoundError:
+        app.state.model = None
+        app.state.startup_warning = (
+            f"Model artifact not found at {model_path}. API started in degraded mode."
+        )
+        logger.warning(app.state.startup_warning)
     
     yield
     
@@ -42,7 +55,7 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="P02 Transfer Learning Yield Predictor API",
+    title="Transfer_Learning_ResNet_STDF_Wafer_Map_Yield_Predictor API",
     version="1.0.0",
     description="REST API for semiconductor wafer yield prediction using ResNet transfer learning",
     lifespan=lifespan
@@ -76,7 +89,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "error": "Internal server error",
-            "message": str(exc),
             "path": request.url.path
         }
     )
@@ -92,9 +104,11 @@ app.include_router(models.router, prefix="/api/v1", tags=["Models"])
 async def root():
     """Root endpoint."""
     return {
-        "name": "P02 Transfer Learning Yield Predictor API",
+        "name": "Transfer_Learning_ResNet_STDF_Wafer_Map_Yield_Predictor API",
         "version": "1.0.0",
-        "status": "running",
+        "status": "running" if app.state.model_loaded else "degraded",
+        "model_loaded": app.state.model_loaded,
+        "startup_warning": app.state.startup_warning,
         "docs": "/docs",
         "health": "/api/v1/health"
     }
