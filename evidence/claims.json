@@ -1,0 +1,39 @@
+{
+  "project": "Transfer Learning ResNet STDF Wafer Map Yield Predictor",
+  "claims": [
+    {
+      "claim": "ResNet18 with 8-class head produces correct output shape [B, 8] for any batch size",
+      "value": true,
+      "unit": "boolean",
+      "evidence_class": "measured",
+      "artifact": "tests/test_resnet_model.py::test_model_forward_shape"
+    },
+    {
+      "claim": "Discriminative learning rate groups assign lr_backbone=1e-5, lr_layer4=1e-4, lr_classifier=1e-3 (3 distinct LRs for progressive fine-tuning)",
+      "value": true,
+      "unit": "boolean",
+      "evidence_class": "measured",
+      "artifact": "tests/test_resnet_model.py::test_param_groups_lrs_differ"
+    },
+    {
+      "claim": "WaferMapGenerator produces 300x300 RGB uint8 images with green pixels for bin1 (PASS) dies",
+      "value": true,
+      "unit": "boolean",
+      "evidence_class": "measured",
+      "artifact": "tests/test_wafer_map_generator.py::test_generate_has_green_pass_pixels"
+    },
+    {
+      "claim": "Coordinate normalization maps all die positions to [0, image_size) pixel space",
+      "value": true,
+      "unit": "boolean",
+      "evidence_class": "measured",
+      "artifact": "tests/test_wafer_map_generator.py::test_coordinate_normalization_within_bounds"
+    }
+  ],
+  "architecture": {
+    "backbone": "ResNet18 (pretrained on ImageNet)",
+    "num_classes": 8,
+    "defect_types": ["Normal", "EdgeEffect", "CenterCluster", "RingPattern", "Scratch", "RandomFailure", "QuadrantFailure", "MixedMode"],
+    "transfer_learning": "progressive fine-tuning with discriminative LRs"
+  }
+}

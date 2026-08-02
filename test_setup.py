@@ -9,7 +9,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-async def test_imports():
+def test_imports():
     """Test if basic imports work."""
     print("Testing imports...")
     
@@ -36,7 +36,7 @@ async def test_imports():
     
     return True
 
-async def test_wafer_data():
+def test_wafer_data():
     """Test WaferData creation."""
     print("\nTesting WaferData creation...")
     
@@ -66,7 +66,7 @@ async def test_wafer_data():
         traceback.print_exc()
         return False
 
-async def test_config():
+def test_config():
     """Test config loading."""
     print("\nTesting config loading...")
     
@@ -89,7 +89,7 @@ async def test_config():
         traceback.print_exc()
         return False
 
-async def test_api_creation():
+def test_api_creation():
     """Test FastAPI app creation."""
     print("\nTesting API app creation...")
     
@@ -112,7 +112,7 @@ async def test_api_creation():
         traceback.print_exc()
         return False
 
-async def main():
+def main():
     """Run all tests."""
     print("=" * 60)
     print("STDF Wafer Map Yield Predictor - Quick Smoke Test Suite")
@@ -127,7 +127,7 @@ async def main():
     
     results = []
     for test_name, test_func in tests:
-        result = await test_func()
+        result = test_func()
         results.append((test_name, result))
     
     print("\n" + "=" * 60)
@@ -151,5 +151,5 @@ async def main():
         return 1
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+    exit_code = main()
     sys.exit(exit_code)
