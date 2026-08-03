@@ -1,5 +1,9 @@
 # Transfer Learning ResNet STDF Wafer Map Yield Predictor
 
+[![CI](https://github.com/rajendarmuddasani/Transfer_Learning_ResNet_STDF_Wafer_Map_Yield_Predictor/actions/workflows/ci.yml/badge.svg)](https://github.com/rajendarmuddasani/Transfer_Learning_ResNet_STDF_Wafer_Map_Yield_Predictor/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-35%20passed-brightgreen)
+[![Evidence](https://img.shields.io/badge/evidence-verified-blue)](evidence/claims.json)
+
 End-to-end wafer yield prediction pipeline that converts raw STDF (Standard Test Data Format) binary files into wafer-map images and classifies defect patterns using transfer-learned ResNet models. Includes a FastAPI backend and React dashboard for real-time inference.
 
 ## Problem
