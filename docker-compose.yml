@@ -1,146 +1,30 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    container_name: stdf-wafer-map-yield-predictor-postgres
-    environment:
-      POSTGRES_USER: waferuser
-      POSTGRES_PASSWORD: waferpassword
-      POSTGRES_DB: stdf_wafer_map_yield_predictor
-    ports:
-      - "5433:5432"  # Changed to avoid port conflict
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U waferuser"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: stdf-wafer-map-yield-predictor-redis
-    ports:
-      - "6380:6379"  # Changed to avoid port conflict
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # MinIO Object Storage
-  minio:
-    image: minio/minio:latest
-    container_name: stdf-wafer-map-yield-predictor-minio
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
-  # MLflow Tracking Server
-  mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.12.1
-    container_name: stdf-wafer-map-yield-predictor-mlflow
-    environment:
-      MLFLOW_BACKEND_STORE_URI: postgresql://waferuser:waferpassword@postgres:5432/stdf_wafer_map_yield_predictor
-      MLFLOW_ARTIFACT_ROOT: s3://mlflow
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin123
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-    ports:
-      - "5000:5000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    command: >
-      mlflow server
-      --host 0.0.0.0
-      --port 5000
-      --backend-store-uri postgresql://waferuser:waferpassword@postgres:5432/stdf_wafer_map_yield_predictor
-      --default-artifact-root s3://mlflow
-
-  # FastAPI Backend
   api:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-    container_name: stdf-wafer-map-yield-predictor-api
     environment:
-      DATABASE_URL: postgresql://waferuser:waferpassword@postgres:5432/stdf_wafer_map_yield_predictor
-      REDIS_URL: redis://redis:6379
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin123
-      MLFLOW_TRACKING_URI: http://mlflow:5000
-      MODEL_PATH: /app/models
+      APP_ENV: production
+      WAFER_CLASSIFIER_API_KEY: ${WAFER_CLASSIFIER_API_KEY:?Set WAFER_CLASSIFIER_API_KEY}
     ports:
       - "8000:8000"
-    volumes:
-      - ./models:/app/models
-      - ./data:/app/data
-      - ./logs:/app/logs
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      mlflow:
-        condition: service_started
-    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/readiness', timeout=3)
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
-  # React Frontend
   frontend:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
-    container_name: stdf-wafer-map-yield-predictor-frontend
     ports:
       - "3000:80"
     depends_on:
-      - api
-
-  # Prometheus Monitoring
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: stdf-wafer-map-yield-predictor-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-    depends_on:
-      - api
-
-volumes:
-  postgres_data:
-  redis_data:
-  minio_data:
-  prometheus_data:
-
-networks:
-  default:
-    name: stdf-wafer-map-yield-predictor-network
+      api:
+        condition: service_healthy

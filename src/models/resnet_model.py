@@ -1,12 +1,12 @@
 """
 ResNet Model with Transfer Learning
-Implements progressive fine-tuning for wafer yield prediction.
+Implements progressive fine-tuning for wafer-pattern classification.
 """
 
 import torch
 import torch.nn as nn
 import torchvision.models as models
-from typing import Optional, List
+from typing import List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ class ResNetTransferLearning(nn.Module):
     ResNet model with transfer learning for wafer map classification.
     Supports progressive fine-tuning with layer-wise learning rates.
     """
-    
+
     def __init__(
         self,
         architecture: str = "resnet18",
@@ -27,7 +27,7 @@ class ResNetTransferLearning(nn.Module):
     ):
         """
         Initialize ResNet transfer learning model.
-        
+
         Args:
             architecture: resnet18 or resnet50
             num_classes: Number of output classes (defect types)
@@ -35,10 +35,10 @@ class ResNetTransferLearning(nn.Module):
             freeze_backbone: Freeze backbone layers initially
         """
         super().__init__()
-        
+
         self.architecture = architecture
         self.num_classes = num_classes
-        
+
         # Load pretrained model
         if architecture == "resnet18":
             if pretrained:
@@ -56,52 +56,52 @@ class ResNetTransferLearning(nn.Module):
             in_features = 2048
         else:
             raise ValueError(f"Unsupported architecture: {architecture}")
-        
+
         # Replace final classifier
         self.model.fc = nn.Linear(in_features, num_classes)
-        
+
         # Initialize new classifier
         nn.init.xavier_uniform_(self.model.fc.weight)
         nn.init.zeros_(self.model.fc.bias)
-        
+
         # Optionally freeze backbone
         if freeze_backbone:
             self.freeze_backbone()
-        
+
         logger.info(
             f"Initialized {architecture} with {num_classes} classes, "
             f"pretrained={pretrained}, freeze_backbone={freeze_backbone}"
         )
-    
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass."""
         return self.model(x)
-    
+
     def freeze_backbone(self):
         """Freeze all layers except final classifier."""
         for name, param in self.model.named_parameters():
             if 'fc' not in name:  # Don't freeze classifier
                 param.requires_grad = False
         logger.info("Froze backbone layers")
-    
+
     def unfreeze_all(self):
         """Unfreeze all layers."""
         for param in self.model.parameters():
             param.requires_grad = True
         logger.info("Unfroze all layers")
-    
+
     def unfreeze_last_block(self):
         """Unfreeze only the last residual block (layer4)."""
         # Freeze all first
         self.freeze_backbone()
-        
+
         # Unfreeze layer4 and classifier
         for name, param in self.model.named_parameters():
             if 'layer4' in name or 'fc' in name:
                 param.requires_grad = True
-        
+
         logger.info("Unfroze layer4 and classifier")
-    
+
     def get_parameter_groups(
         self,
         lr_backbone: float = 1e-5,
@@ -110,52 +110,52 @@ class ResNetTransferLearning(nn.Module):
     ) -> List[dict]:
         """
         Get parameter groups with discriminative learning rates.
-        
+
         Args:
             lr_backbone: Learning rate for layer1-3
             lr_layer4: Learning rate for layer4
             lr_classifier: Learning rate for classifier
-            
+
         Returns:
             List of parameter group dictionaries
         """
         param_groups = [
             {
-                'params': [p for n, p in self.model.named_parameters() 
+                'params': [p for n, p in self.model.named_parameters()
                           if 'layer4' not in n and 'fc' not in n and p.requires_grad],
                 'lr': lr_backbone,
                 'name': 'backbone'
             },
             {
-                'params': [p for n, p in self.model.named_parameters() 
+                'params': [p for n, p in self.model.named_parameters()
                           if 'layer4' in n and p.requires_grad],
                 'lr': lr_layer4,
                 'name': 'layer4'
             },
             {
-                'params': [p for n, p in self.model.named_parameters() 
+                'params': [p for n, p in self.model.named_parameters()
                           if 'fc' in n and p.requires_grad],
                 'lr': lr_classifier,
                 'name': 'classifier'
             }
         ]
-        
+
         # Filter out empty groups
         param_groups = [g for g in param_groups if len(g['params']) > 0]
-        
+
         return param_groups
-    
+
     def get_feature_extractor(self) -> nn.Module:
         """Get feature extractor (model without classifier)."""
         return nn.Sequential(*list(self.model.children())[:-1])
-    
+
     def extract_features(self, x: torch.Tensor) -> torch.Tensor:
         """
         Extract features from input (before classifier).
-        
+
         Args:
             x: Input tensor (B, 3, H, W)
-            
+
         Returns:
             Features tensor (B, D) where D=512 (ResNet18) or 2048 (ResNet50)
         """
@@ -165,9 +165,9 @@ class ResNetTransferLearning(nn.Module):
 
 class ResNetYieldRegressor(nn.Module):
     """
-    ResNet for yield regression (predicting continuous yield value).
+    Experimental yield-regression architecture; no confirmed trained artifact.
     """
-    
+
     def __init__(
         self,
         architecture: str = "resnet18",
@@ -176,21 +176,21 @@ class ResNetYieldRegressor(nn.Module):
     ):
         """
         Initialize ResNet yield regressor.
-        
+
         Args:
             architecture: resnet18 or resnet50
             pretrained: Use ImageNet pretrained weights
             freeze_backbone: Freeze backbone layers initially
         """
         super().__init__()
-        
+
         self.classifier = ResNetTransferLearning(
             architecture=architecture,
             num_classes=1,  # Single output for yield
             pretrained=pretrained,
             freeze_backbone=freeze_backbone
         )
-    
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass with sigmoid activation for 0-1 range."""
         logits = self.classifier(x)
@@ -199,9 +199,9 @@ class ResNetYieldRegressor(nn.Module):
 
 class ResNetMultiTask(nn.Module):
     """
-    Multi-task model: predicts both defect class and yield.
+    Experimental multi-task architecture; no confirmed trained artifact.
     """
-    
+
     def __init__(
         self,
         architecture: str = "resnet18",
@@ -211,7 +211,7 @@ class ResNetMultiTask(nn.Module):
     ):
         """
         Initialize multi-task ResNet.
-        
+
         Args:
             architecture: resnet18 or resnet50
             num_classes: Number of defect classes
@@ -219,7 +219,7 @@ class ResNetMultiTask(nn.Module):
             freeze_backbone: Freeze backbone layers initially
         """
         super().__init__()
-        
+
         # Shared backbone
         if architecture == "resnet18":
             if pretrained:
@@ -237,10 +237,10 @@ class ResNetMultiTask(nn.Module):
             in_features = 2048
         else:
             raise ValueError(f"Unsupported architecture: {architecture}")
-        
+
         # Remove original classifier
         self.backbone = nn.Sequential(*list(self.backbone.children())[:-1])
-        
+
         # Task-specific heads
         self.defect_classifier = nn.Linear(in_features, num_classes)
         self.yield_regressor = nn.Sequential(
@@ -250,27 +250,27 @@ class ResNetMultiTask(nn.Module):
             nn.Linear(128, 1),
             nn.Sigmoid()  # Output in [0, 1]
         )
-        
+
         # Freeze backbone if requested
         if freeze_backbone:
             for param in self.backbone.parameters():
                 param.requires_grad = False
-        
+
         logger.info(f"Initialized multi-task {architecture} model")
-    
+
     def forward(self, x: torch.Tensor) -> tuple:
         """
         Forward pass.
-        
+
         Returns:
             (defect_logits, yield_prediction)
         """
         features = self.backbone(x)
         features = torch.flatten(features, 1)
-        
+
         defect_logits = self.defect_classifier(features)
         yield_pred = self.yield_regressor(features)
-        
+
         return defect_logits, yield_pred
 
 
@@ -283,14 +283,14 @@ def create_model(
 ) -> nn.Module:
     """
     Factory function to create model.
-    
+
     Args:
         architecture: resnet18 or resnet50
         num_classes: Number of classes (for classification)
         task: classification, regression, or multitask
         pretrained: Use ImageNet pretrained weights
         freeze_backbone: Freeze backbone initially
-        
+
     Returns:
         Model instance
     """
@@ -324,7 +324,7 @@ if __name__ == "__main__":
     print(f"Model: {model.architecture}")
     print(f"Parameters: {sum(p.numel() for p in model.parameters()):,}")
     print(f"Trainable: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
-    
+
     # Test forward pass
     x = torch.randn(2, 3, 224, 224)
     y = model(x)

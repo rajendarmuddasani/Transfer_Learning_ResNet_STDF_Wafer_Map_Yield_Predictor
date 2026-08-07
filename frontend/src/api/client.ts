@@ -1,55 +1,15 @@
-/**
- * API client for the STDF wafer map yield predictor frontend.
- */
-
-import axios from 'axios'
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001'
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
-
-// Request interceptor for adding auth token
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => Promise.reject(error)
-)
-
-// Response interceptor for error handling
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized
-      localStorage.removeItem('token')
-      window.location.href = '/login'
-    }
-    return Promise.reject(error)
-  }
-)
+/** Typed fetch client for the confirmed wafer classifier API. */
 
 export interface PredictionResponse {
-  wafer_id: string
-  prediction: {
-    yield: number
-    defect_class: string
-    defect_probabilities: Record<string, number>
-    confidence: number
-    uncertainty: number
-  }
+  wafer_reference: string
+  task: string
+  defect_class: string
+  defect_probabilities: Record<string, number>
+  confidence: number
   model_version: string
+  model_sha256: string
   inference_time_ms: number
-  grad_cam_url?: string
+  request_id: string
   timestamp: string
 }
 
@@ -60,38 +20,35 @@ export interface ModelInfo {
   version: string
   stage: string
   accuracy?: number
-  created_at: string
-  created_by: string
+  macro_f1?: number
+  minimum_class_recall?: number
+  model_sha256: string
+  data_scope: string
+}
+
+interface ApiResponse<T> {
+  data: T
+}
+
+async function request<T>(path: string, options?: RequestInit): Promise<ApiResponse<T>> {
+  const headers = new Headers(options?.headers)
+  const token = localStorage.getItem('token')
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(path, { ...options, headers })
+  if (response.status === 401) localStorage.removeItem('token')
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({ detail: 'Request failed' }))
+    throw new Error(detail.detail || `Request failed with status ${response.status}`)
+  }
+  return { data: await response.json() as T }
 }
 
 export const api = {
-  // Health check
-  health: () => apiClient.get('/api/v1/health'),
-
-  // Predictions
-  predictSingle: (formData: FormData) =>
-    apiClient.post<PredictionResponse>('/api/v1/predict', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
-
-  predictBatch: (data: { wafer_ids?: string[]; lot_id?: string }) =>
-    apiClient.post('/api/v1/predict/batch', data),
-
-  getJobStatus: (jobId: string) =>
-    apiClient.get(`/api/v1/jobs/${jobId}`),
-
-  getBatchResults: (jobId: string) =>
-    apiClient.get(`/api/v1/results/${jobId}`),
-
-  // Models
-  listModels: () =>
-    apiClient.get<ModelInfo[]>('/api/v1/models'),
-
-  getModel: (modelId: string) =>
-    apiClient.get<ModelInfo>(`/api/v1/models/${modelId}`),
-
-  promoteModel: (modelId: string, data: any) =>
-    apiClient.post(`/api/v1/models/${modelId}/promote`, data),
+  health: () => request<{ status: string; model_loaded: boolean }>('/api/v1/health'),
+  predictSingle: (formData: FormData) => request<PredictionResponse>('/api/v1/classify-image', {
+    method: 'POST',
+    body: formData,
+  }),
+  listModels: () => request<ModelInfo[]>('/api/v1/models'),
+  getModel: (modelId: string) => request<ModelInfo>(`/api/v1/models/${encodeURIComponent(modelId)}`),
 }
-
-export default apiClient

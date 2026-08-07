@@ -9,123 +9,90 @@ export default function PredictPage() {
 
   const predictMutation = useMutation({
     mutationFn: (formData: FormData) => api.predictSingle(formData),
-    onSuccess: (response) => {
-      setResult(response.data)
-    },
+    onSuccess: (response) => setResult(response.data),
   })
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0])
+  const chooseFile = (nextFile?: File) => {
+    if (nextFile && ['image/png', 'image/jpeg'].includes(nextFile.type)) {
+      setFile(nextFile)
+      setResult(null)
     }
   }
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragOver(false)
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0])
-    }
-  }
-
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!file) return
-
     const formData = new FormData()
-    formData.append('stdf_file', file)
-    formData.append('product_id', 'TC42x')
-    formData.append('test_completion_pct', '10.0')
-
+    formData.append('wafer_map_image', file)
     predictMutation.mutate(formData)
   }
+
+  const rankedProbabilities = result
+    ? Object.entries(result.defect_probabilities).sort(([, left], [, right]) => right - left)
+    : []
 
   return (
     <div>
       <div className="page-header">
-        <h2>Predict Wafer Yield</h2>
-        <p>Upload STDF file or wafer map image for prediction</p>
+        <p className="eyebrow">Single bounded decision</p>
+        <h2>Classify Wafer Map</h2>
+        <p>Upload one PNG or JPEG wafer-map image. STDF ingestion and batch jobs are outside this confirmed runtime.</p>
       </div>
 
-      <div className="card">
-        <div
-          className={`upload-zone ${dragOver ? 'drag-over' : ''}`}
-          onDragOver={(e) => {
-            e.preventDefault()
-            setDragOver(true)
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => document.getElementById('file-input')?.click()}
-        >
-          <input
-            id="file-input"
-            type="file"
-            accept=".stdf,.std,.png,.jpg"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-          />
-          {file ? (
-            <div>
-              <p>Selected: {file.name}</p>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>
-                Click to change or drag another file
-              </p>
-            </div>
+      <div className="tool-layout">
+        <section className="card">
+          <div
+            className={`upload-zone ${dragOver ? 'drag-over' : ''}`}
+            onDragOver={(event) => { event.preventDefault(); setDragOver(true) }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(event) => { event.preventDefault(); setDragOver(false); chooseFile(event.dataTransfer.files[0]) }}
+            onClick={() => document.getElementById('file-input')?.click()}
+          >
+            <input
+              id="file-input"
+              type="file"
+              accept="image/png,image/jpeg"
+              onChange={(event) => chooseFile(event.target.files?.[0])}
+              style={{ display: 'none' }}
+            />
+            <span className="upload-icon">+</span>
+            <strong>{file ? file.name : 'Select wafer-map image'}</strong>
+            <small>PNG or JPEG, maximum 10 MiB</small>
+          </div>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={!file || predictMutation.isPending}>
+            {predictMutation.isPending ? 'Classifying' : 'Run classifier'}
+          </button>
+          {predictMutation.isError && <p className="error-text">Classification failed. Verify the API is ready and the image is valid.</p>}
+        </section>
+
+        <section className="card result-panel">
+          {result ? (
+            <>
+              <p className="eyebrow">Confirmed model response</p>
+              <h3>{result.defect_class}</h3>
+              <p className="confidence">{(result.confidence * 100).toFixed(2)}% confidence</p>
+              <div className="probability-list">
+                {rankedProbabilities.map(([className, probability]) => (
+                  <div key={className}>
+                    <span>{className}</span>
+                    <div className="probability-track"><i style={{ width: `${probability * 100}%` }} /></div>
+                    <strong>{(probability * 100).toFixed(1)}%</strong>
+                  </div>
+                ))}
+              </div>
+              <dl className="fact-list compact">
+                <div><dt>Model</dt><dd>{result.model_version}</dd></div>
+                <div><dt>Latency</dt><dd>{result.inference_time_ms.toFixed(2)} ms</dd></div>
+                <div><dt>Request</dt><dd className="mono">{result.request_id.slice(0, 14)}...</dd></div>
+              </dl>
+            </>
           ) : (
-            <div>
-              <p style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>
-                Drop STDF file here or click to browse
-              </p>
-              <p style={{ fontSize: '0.9rem', color: '#666' }}>
-                Supports .stdf, .std, .png, .jpg files
-              </p>
+            <div className="empty-result">
+              <strong>No classification yet</strong>
+              <p>The result will include all eight calibrated class probabilities and the exact model identity.</p>
             </div>
           )}
-        </div>
-
-        {file && (
-          <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-            <button
-              className="btn btn-primary"
-              onClick={handleSubmit}
-              disabled={predictMutation.isPending}
-            >
-              {predictMutation.isPending ? 'Predicting...' : 'Predict Yield'}
-            </button>
-          </div>
-        )}
+        </section>
       </div>
-
-      {predictMutation.isPending && (
-        <div className="loading">
-          <div className="spinner"></div>
-        </div>
-      )}
-
-      {result && (
-        <div className="card">
-          <div className="card-header">Prediction Results</div>
-          <div className="grid grid-2">
-            <div>
-              <p><strong>Wafer ID:</strong> {result.wafer_id}</p>
-              <p><strong>Predicted Yield:</strong> {result.prediction.yield.toFixed(2)}%</p>
-              <p><strong>Defect Class:</strong> {result.prediction.defect_class}</p>
-              <p><strong>Confidence:</strong> {(result.prediction.confidence * 100).toFixed(2)}%</p>
-            </div>
-            <div>
-              <p><strong>Model Version:</strong> {result.model_version}</p>
-              <p><strong>Inference Time:</strong> {result.inference_time_ms.toFixed(0)}ms</p>
-              <p><strong>Timestamp:</strong> {new Date(result.timestamp).toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {predictMutation.isError && (
-        <div className="card" style={{ backgroundColor: '#ffebee', color: '#c62828' }}>
-          <p><strong>Error:</strong> {(predictMutation.error as any)?.message || 'Prediction failed'}</p>
-        </div>
-      )}
     </div>
   )
 }

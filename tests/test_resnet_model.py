@@ -1,5 +1,6 @@
 """Tests for ResNetTransferLearning model architecture and parameter groups."""
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import torch

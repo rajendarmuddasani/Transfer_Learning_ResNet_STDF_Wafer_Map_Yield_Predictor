@@ -1,85 +1,47 @@
-"""
-Model Management Routes
-"""
+"""Read-only confirmed model registry routes."""
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
-import logging
+from fastapi import APIRouter, Depends, HTTPException
 
-logger = logging.getLogger(__name__)
+from ..inference import get_model
+from ..security import require_api_key
+
 
 router = APIRouter()
 
 
-class ModelInfo(BaseModel):
-    """Model information."""
-    model_id: str
-    model_name: str
-    architecture: str
-    version: str
-    stage: str
-    accuracy: Optional[float] = None
-    created_at: str
-    created_by: str
+async def confirmed_model_record() -> dict:
+    engine = get_model()
+    metrics = engine.evaluation["confirmation_metrics"]
+    return {
+        "model_id": engine.metadata["model_version"],
+        "model_name": "Public Synthetic ResNet-18 Classifier",
+        "architecture": engine.metadata["architecture"],
+        "version": engine.metadata["model_version"],
+        "stage": "CONFIRMED_SYNTHETIC",
+        "accuracy": metrics["accuracy"],
+        "macro_f1": metrics["macro_f1"],
+        "minimum_class_recall": metrics["minimum_class_recall"],
+        "model_sha256": engine.model_sha256,
+        "data_scope": engine.evaluation["data_scope"],
+    }
 
 
-class ModelPromoteRequest(BaseModel):
-    """Request to promote model."""
-    target_stage: str
-    rollback_on_degradation: bool = True
-    ab_test_duration_hours: int = 168
-
-
-@router.get("/models", response_model=List[ModelInfo])
+@router.get("/models", dependencies=[Depends(require_api_key)])
 async def list_models():
-    """List all available models."""
-    # STUB: no model registry is connected — returns placeholder entries
-    # Accuracy values are targets, NOT verified training results
-    return [
-        ModelInfo(
-            model_id="resnet18-placeholder",
-            model_name="ResNet-18 Transfer Learning (placeholder)",
-            architecture="resnet18",
-            version="v0.0",
-            stage="NONE",
-            accuracy=None,
-            created_at="",
-            created_by=""
-        )
-    ]
+    return [await confirmed_model_record()]
 
 
-@router.get("/models/{model_id}", response_model=ModelInfo)
-async def get_model(model_id: str):
-    """Get model details."""
-    # Placeholder
-    return ModelInfo(
-        model_id=model_id,
-        model_name="ResNet-18 Transfer Learning",
-        architecture="resnet18",
-        version="v1.2",
-        stage="PRODUCTION",
-        accuracy=0.9245,
-        created_at="2025-11-15T14:20:00Z",
-        created_by="ml_engineer@example.com"
-    )
+@router.get("/models/{model_id}", dependencies=[Depends(require_api_key)])
+async def get_model_info(model_id: str):
+    record = await confirmed_model_record()
+    if model_id != record["model_id"]:
+        raise HTTPException(status_code=404, detail="Model not found")
+    return record
 
 
 @router.post("/models/{model_id}/promote")
-async def promote_model(model_id: str, request: ModelPromoteRequest):
-    """Promote model to different stage."""
-    try:
-        logger.info(f"Promoting model {model_id} to {request.target_stage}")
-        
-        # Placeholder implementation
-        return {
-            "model_id": model_id,
-            "stage": request.target_stage,
-            "previous_model": "resnet18-v1.1",
-            "ab_test_start": datetime.now().isoformat(),
-            "status": "AB_TESTING"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def unsupported_promotion(model_id: str):
+    raise HTTPException(
+        status_code=501,
+        detail=f"Automated model promotion is not implemented: {model_id}",
+    )

@@ -1,10 +1,11 @@
 """Tests for WaferMapGenerator image generation pipeline."""
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import numpy as np
-import pytest
 from src.data.wafer_map_generator import WaferMapGenerator
+from PIL import Image
 
 
 def test_generator_default_params():
@@ -76,3 +77,24 @@ def test_coordinate_normalization_within_bounds(grid_wafer):
     norm = gen._normalize_coordinates(grid_wafer.coordinates, 64, 4)
     assert norm.min() >= 0
     assert norm.max() < 64
+
+def test_draw_die_uses_exact_odd_size():
+    generator = WaferMapGenerator(image_size=16, die_size=3)
+    image = np.zeros((16, 16, 3), dtype=np.uint8)
+
+    generator._draw_die(image, 8, 8, (255, 0, 0))
+
+    colored = np.all(image == np.array([255, 0, 0], dtype=np.uint8), axis=2)
+    assert int(colored.sum()) == 9
+
+
+def test_saved_image_preserves_rgb_channels(tmp_path):
+    generator = WaferMapGenerator(image_size=4, die_size=1)
+    image = np.zeros((4, 4, 3), dtype=np.uint8)
+    image[1, 1] = (255, 0, 0)
+    path = tmp_path / "rgb.png"
+
+    generator._save_image(image, str(path))
+
+    saved = np.asarray(Image.open(path).convert("RGB"))
+    assert tuple(saved[1, 1]) == (255, 0, 0)

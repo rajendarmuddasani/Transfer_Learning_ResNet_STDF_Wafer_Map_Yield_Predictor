@@ -1,5 +1,6 @@
 """Shared fixtures for ResNet wafer map yield predictor tests."""
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import numpy as np

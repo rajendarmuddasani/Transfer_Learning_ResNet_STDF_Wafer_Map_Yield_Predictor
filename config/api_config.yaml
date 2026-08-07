@@ -1,144 +1,27 @@
-# API Configuration
 api:
-  title: "Transfer_Learning_ResNet_STDF_Wafer_Map_Yield_Predictor API"
-  version: "1.0.0"
-  description: "REST API for semiconductor wafer yield prediction"
+  title: "Wafer Pattern Classifier API"
+  version: "2.0.0"
+  description: "Hash-verified synthetic wafer-pattern classification reference"
   host: "0.0.0.0"
   port: 8000
-  reload: true
-  workers: 4
-  log_level: "info"
-  
-  # CORS
+  reload: false
   cors:
-    allow_origins: ["http://localhost:3000", "http://localhost:8000"]
-    allow_credentials: true
-    allow_methods: ["*"]
-    allow_headers: ["*"]
-  
-  # Rate Limiting
+    allow_origins: ["http://localhost:3000", "http://localhost:5173"]
   rate_limit:
     per_minute: 100
-    per_hour: 1000
-    burst: 20
 
-# Model Configuration
 model:
-  production_model_path: "models/onnx/resnet18-v1.2.onnx"
-  staging_model_path: "models/onnx/resnet50-v2.0.onnx"
-  device: "cpu"  # cuda or cpu
-  batch_size: 32
-  
-  # Inference Settings
-  inference:
-    max_batch_size: 64
-    batch_timeout_ms: 50
-    enable_gradcam: true
-    gradcam_layer: "layer4"
-    temperature_scaling: 1.5  # For confidence calibration
-    
-  # TensorRT Optimization (NOT IMPLEMENTED in current code)
-  tensorrt:
-    enabled: false
-    precision: "fp16"  # fp32, fp16, int8
-    workspace_size_gb: 4
+  production_model_path: "models/onnx/public_synthetic_resnet18_v1.onnx"
+  metadata_path: "models/public_synthetic_resnet18_v1.json"
+  evidence_path: "evidence/public_synthetic_evaluation.json"
+  task: "synthetic wafer-pattern classification"
 
-# Database Configuration
-# Set DB_URL env var in production
-database:
-  url: "${DB_URL:-postgresql://localhost:5433/stdf_wafer_map_yield_predictor}"
-  pool_size: 20
-  max_overflow: 10
-  pool_timeout: 30
-  pool_recycle: 3600
-
-# Redis Configuration
-redis:
-  host: "localhost"
-  port: 6379
-  db: 0
-  password: null
-  socket_timeout: 5
-  socket_connect_timeout: 5
-  
-  # Cache Settings
-  cache:
-    prediction_ttl: 3600  # 1 hour
-    wafer_map_ttl: 86400  # 24 hours
-    max_memory: "2gb"
-    eviction_policy: "allkeys-lru"
-
-# MinIO Configuration
-# Set MINIO_ACCESS_KEY / MINIO_SECRET_KEY env vars in production
-minio:
-  endpoint: "localhost:9000"
-  access_key: "${MINIO_ACCESS_KEY}"
-  secret_key: "${MINIO_SECRET_KEY}"
-  secure: false
-  
-  # Buckets
-  buckets:
-    wafer_maps: "wafer-maps"
-    models: "models"
-    gradcam: "gradcam"
-    predictions: "predictions"
-
-# Authentication
-# CRITICAL: set AUTH_SECRET_KEY env var before public deployment
-auth:
-  secret_key: "CHANGE-ME-set-AUTH_SECRET_KEY-env-var"
-  algorithm: "HS256"
-  access_token_expire_minutes: 60
-  refresh_token_expire_days: 30
-  
-  # OAuth2 (Optional)
-  oauth2:
-    enabled: false
-    provider: "azure_ad"  # azure_ad, okta, auth0
-    client_id: ""
-    client_secret: ""
-    tenant_id: ""
-
-# Monitoring
-monitoring:
-  prometheus:
-    enabled: true
-    port: 8001
-    path: "/metrics"
-  
-  # Metrics to Track
-  metrics:
-    - "request_count"
-    - "request_duration"
-    - "prediction_count"
-    - "model_inference_time"
-    - "cache_hit_rate"
-    - "error_rate"
-
-# Logging
-logging:
-  level: "INFO"
-  format: "json"
-  output: "logs/api.log"
-  rotation: "1 day"
-  retention: "30 days"
-  
-  # Structured Logging
-  include_timestamp: true
-  include_caller: true
-  include_stack_trace: true
-
-# File Upload
 upload:
-  max_file_size_mb: 100
-  allowed_extensions: [".stdf", ".std", ".png", ".jpg"]
-  temp_dir: "tmp/uploads"
-  cleanup_interval_hours: 24
+  max_file_size_mb: 10
+  allowed_content_types: ["image/png", "image/jpeg"]
 
-# Batch Processing
-batch:
-  queue_name: "prediction_queue"
-  max_queue_size: 1000
-  worker_concurrency: 10
-  task_timeout_minutes: 30
-  result_ttl_hours: 48
+security:
+  production_api_key_environment_variable: "WAFER_CLASSIFIER_API_KEY"
+
+monitoring:
+  prometheus_path: "/metrics"

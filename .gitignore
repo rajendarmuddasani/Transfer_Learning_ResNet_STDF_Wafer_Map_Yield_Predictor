@@ -54,6 +54,7 @@ models/onnx/**/*.onnx
 models/tensorrt/**/*.engine
 !models/checkpoints/.gitkeep
 !models/onnx/.gitkeep
+!models/onnx/public_synthetic_resnet18_v1.onnx
 !models/tensorrt/.gitkeep
 
 # DVC
@@ -68,6 +69,8 @@ mlflow.db
 logs/**/*.log
 logs/**/*.txt
 *.log
+.coverage
+coverage.xml
 
 # Environment Variables
 .env
@@ -116,6 +119,10 @@ frontend/dist/
 frontend/build/
 frontend/.next/
 frontend/.cache/
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+frontend/vite.config.js.map
 frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
@@ -139,3 +146,5 @@ k8s/secrets/
 # Training artifacts
 artifacts/
 figures/
+pdocs/
+frontend/.tsupgrader/

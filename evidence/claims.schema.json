@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Project 4 public claim ledger",
+  "type": "object",
+  "required": ["project", "public_champion", "claims"],
+  "properties": {
+    "project": {"type": "string", "minLength": 1},
+    "public_champion": {"type": "string", "minLength": 1},
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["claim", "evidence_class", "safe", "source", "allowed_wording"],
+        "properties": {
+          "claim": {"type": "string", "minLength": 1},
+          "value": {},
+          "unit": {"type": "string"},
+          "evidence_class": {
+            "enum": ["reproduced", "measured", "historical", "target", "architecture", "unsupported"]
+          },
+          "safe": {"type": "boolean"},
+          "source": {"type": "string", "minLength": 1},
+          "allowed_wording": {"type": "string"},
+          "limitations": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

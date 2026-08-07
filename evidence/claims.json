@@ -1,39 +1,109 @@
 {
-  "project": "Transfer Learning ResNet STDF Wafer Map Yield Predictor",
+  "project": "ResNet Wafer Pattern Classifier",
+  "public_champion": "public_synthetic_resnet18_v1",
   "claims": [
     {
-      "claim": "ResNet18 with 8-class head produces correct output shape [B, 8] for any batch size",
-      "value": true,
-      "unit": "boolean",
-      "evidence_class": "measured",
-      "artifact": "tests/test_resnet_model.py::test_model_forward_shape"
+      "claim": "Grouped synthetic confirmation accuracy",
+      "value": 0.93625,
+      "unit": "fraction",
+      "evidence_class": "reproduced",
+      "safe": true,
+      "source": "evidence/public_synthetic_evaluation.json",
+      "allowed_wording": "93.63% accuracy on 800 independently generated synthetic confirmation wafers from disjoint pattern families.",
+      "limitations": ["Synthetic wafer-pattern classification only; not WM-811K or production silicon evidence."]
     },
     {
-      "claim": "Discriminative learning rate groups assign lr_backbone=1e-5, lr_layer4=1e-4, lr_classifier=1e-3 (3 distinct LRs for progressive fine-tuning)",
-      "value": true,
-      "unit": "boolean",
-      "evidence_class": "measured",
-      "artifact": "tests/test_resnet_model.py::test_param_groups_lrs_differ"
+      "claim": "Grouped synthetic confirmation macro F1",
+      "value": 0.9360728678551831,
+      "unit": "fraction",
+      "evidence_class": "reproduced",
+      "safe": true,
+      "source": "evidence/public_synthetic_evaluation.json",
+      "allowed_wording": "0.9361 macro F1 on the frozen 800-wafer grouped synthetic confirmation set.",
+      "limitations": ["Eight balanced synthetic classes; natural production prevalence is not represented."]
     },
     {
-      "claim": "WaferMapGenerator produces 300x300 RGB uint8 images with green pixels for bin1 (PASS) dies",
-      "value": true,
-      "unit": "boolean",
-      "evidence_class": "measured",
-      "artifact": "tests/test_wafer_map_generator.py::test_generate_has_green_pass_pixels"
+      "claim": "Grouped synthetic confirmation MCC",
+      "value": 0.927278647172977,
+      "unit": "fraction",
+      "evidence_class": "reproduced",
+      "safe": true,
+      "source": "evidence/public_synthetic_evaluation.json",
+      "allowed_wording": "0.9273 Matthews correlation coefficient on grouped synthetic confirmation.",
+      "limitations": ["Synthetic benchmark only."]
     },
     {
-      "claim": "Coordinate normalization maps all die positions to [0, image_size) pixel space",
+      "claim": "Minimum synthetic confirmation class recall",
+      "value": 0.83,
+      "unit": "fraction",
+      "evidence_class": "reproduced",
+      "safe": true,
+      "source": "evidence/public_synthetic_evaluation.json",
+      "allowed_wording": "83.0% minimum class recall; QuadrantFailure is the weakest confirmed class.",
+      "limitations": ["Each confirmation class has 100 independently generated synthetic samples."]
+    },
+    {
+      "claim": "Top-label expected calibration error",
+      "value": 0.027026024624529014,
+      "unit": "fraction",
+      "evidence_class": "reproduced",
+      "safe": true,
+      "source": "evidence/public_synthetic_evaluation.json",
+      "allowed_wording": "0.0270 top-label expected calibration error after validation-only temperature fitting.",
+      "limitations": ["Calibration was measured on the balanced synthetic confirmation distribution."]
+    },
+    {
+      "claim": "Local ONNX CPU latency p95",
+      "value": 10.721140001442107,
+      "unit": "milliseconds",
+      "evidence_class": "measured",
+      "safe": true,
+      "source": "evidence/public_synthetic_evaluation.json",
+      "allowed_wording": "10.72 ms p95 local single-image ONNX Runtime CPU latency over 100 iterations.",
+      "limitations": ["Local single-host measurement; not a production SLO."]
+    },
+    {
+      "claim": "Hash-verified image-classification API",
       "value": true,
       "unit": "boolean",
-      "evidence_class": "measured",
-      "artifact": "tests/test_wafer_map_generator.py::test_coordinate_normalization_within_bounds"
+      "evidence_class": "architecture",
+      "safe": true,
+      "source": "src/api/inference.py",
+      "allowed_wording": "Hash-verified ONNX image-classification reference with bounded uploads, API-key enforcement, request IDs, readiness, and Prometheus metrics.",
+      "limitations": ["Deployment reference only; no production use is claimed."]
+    },
+    {
+      "claim": "WM-811K test accuracy",
+      "value": 0.89,
+      "unit": "fraction",
+      "evidence_class": "unsupported",
+      "safe": false,
+      "source": "evidence/PDF_REPOSITORY_AUDIT.md",
+      "allowed_wording": "",
+      "limitations": [
+        "No canonical result JSON, matching checkpoint, ONNX artifact, source pickle, or split manifest is available.",
+        "The historical script used a random row split without duplicate or lot isolation."
+      ]
+    },
+    {
+      "claim": "STDF-to-classification pipeline",
+      "value": "not confirmed",
+      "unit": "state",
+      "evidence_class": "unsupported",
+      "safe": false,
+      "source": "evidence/PDF_REPOSITORY_AUDIT.md",
+      "allowed_wording": "",
+      "limitations": ["The hand-written parser is not specification-validated and is excluded from the confirmed API path."]
+    },
+    {
+      "claim": "Wafer yield prediction",
+      "value": "not implemented",
+      "unit": "state",
+      "evidence_class": "unsupported",
+      "safe": false,
+      "source": "evidence/PDF_REPOSITORY_AUDIT.md",
+      "allowed_wording": "",
+      "limitations": ["The confirmed model has only an eight-class pattern head; no evaluated yield-regression artifact exists."]
     }
-  ],
-  "architecture": {
-    "backbone": "ResNet18 (pretrained on ImageNet)",
-    "num_classes": 8,
-    "defect_types": ["Normal", "EdgeEffect", "CenterCluster", "RingPattern", "Scratch", "RandomFailure", "QuadrantFailure", "MixedMode"],
-    "transfer_learning": "progressive fine-tuning with discriminative LRs"
-  }
+  ]
 }

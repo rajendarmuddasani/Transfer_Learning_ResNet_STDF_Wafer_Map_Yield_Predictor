@@ -1,32 +1,27 @@
-FROM python:3.10-slim
+FROM cgr.dev/chainguard/python:latest-dev AS builder
 
 WORKDIR /app
+COPY requirements-public.txt ./
+RUN python -m pip install --no-cache-dir --user -r requirements-public.txt
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+FROM cgr.dev/chainguard/python:latest
 
-# Copy requirements
-COPY requirements.txt .
+ENV APP_ENV=production \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/home/nonroot/.local/bin:${PATH}"
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+WORKDIR /app
+COPY --from=builder /home/nonroot/.local /home/nonroot/.local
+COPY --chown=65532:65532 config/api_config.yaml ./config/
+COPY --chown=65532:65532 evidence/public_synthetic_evaluation.json ./evidence/
+COPY --chown=65532:65532 models/public_synthetic_resnet18_v1.json ./models/
+COPY --chown=65532:65532 models/onnx/public_synthetic_resnet18_v1.onnx ./models/onnx/
+COPY --chown=65532:65532 src ./src
 
-# Copy application code
-COPY src/ ./src/
-COPY config/ ./config/
-
-# Create runtime directories. Model artifacts are optional and not checked in.
-RUN mkdir -p /app/models /app/data /app/logs /app/tmp/uploads
-
-# Expose port
 EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/readiness', timeout=3)"]
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/api/v1/health')"
-
-# Run application
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["python"]
+CMD ["-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

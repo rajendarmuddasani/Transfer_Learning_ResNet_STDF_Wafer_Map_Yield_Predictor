@@ -1,10 +1,11 @@
 """Tests for WaferData dataclass and yield computation."""
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import numpy as np
 import pytest
-from src.data import WaferData
+from src.data import STDFParser, WaferData
 
 
 def test_wafer_data_construction(grid_wafer):
@@ -59,3 +60,11 @@ def test_wafer_num_stored():
         bins=np.array([1, 1, 1, 2]),
     )
     assert w.wafer_num == 10
+
+
+def test_stdf_parser_fails_closed(tmp_path):
+    path = tmp_path / "input.stdf"
+    path.write_bytes(b"not-a-validated-stdf")
+
+    with pytest.raises(NotImplementedError, match="outside the confirmed"):
+        STDFParser(str(path)).parse()

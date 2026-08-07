@@ -1,130 +1,161 @@
-# Transfer Learning ResNet STDF Wafer Map Yield Predictor
+# ResNet Wafer Pattern Classifier
 
 [![CI](https://github.com/rajendarmuddasani/Transfer_Learning_ResNet_STDF_Wafer_Map_Yield_Predictor/actions/workflows/ci.yml/badge.svg)](https://github.com/rajendarmuddasani/Transfer_Learning_ResNet_STDF_Wafer_Map_Yield_Predictor/actions/workflows/ci.yml)
-![Tests](https://img.shields.io/badge/tests-35%20passed-brightgreen)
-[![Evidence](https://img.shields.io/badge/evidence-verified-blue)](evidence/claims.json)
+![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?logo=python&logoColor=white)
+![Evidence](https://img.shields.io/badge/Evidence-800%20grouped%20confirmation-18745A)
+![Model](https://img.shields.io/badge/Runtime-Hash--verified%20ONNX-17324D)
 
-End-to-end wafer yield prediction pipeline that converts raw STDF (Standard Test Data Format) binary files into wafer-map images and classifies defect patterns using transfer-learned ResNet models. Includes a FastAPI backend and React dashboard for real-time inference.
+A safety-scoped eight-class wafer-pattern classifier built around an ImageNet
+ResNet-18 feature extractor, a validation-selected linear head, validation-only
+temperature calibration, and an exact ONNX runtime artifact. The confirmed API
+accepts bounded PNG/JPEG wafer-map images and returns calibrated class
+probabilities with model and request identity.
 
-## Problem
+The public benchmark is independently generated synthetic simulation. It is not
+WM-811K evidence, production silicon validation, STDF parsing evidence, or a
+yield-prediction outcome.
 
-Semiconductor test floors generate STDF binary files containing millions of per-die test results. Converting this raw data into actionable defect intelligence requires parsing binary records, reconstructing spatial wafer maps, and recognizing defect patterns — a workflow that is manual, slow, and error-prone. This project automates the full pipeline from binary STDF input to classified defect output.
+## Evidence Dashboard
 
-## Pipeline
+| Grouped synthetic confirmation | Reproduced result |
+|---|---:|
+| Samples / unseen families | 800 / 80 |
+| Accuracy | 93.63% (95% CI 91.71-95.12%) |
+| Macro / weighted F1 | 0.9361 / 0.9361 |
+| Balanced accuracy / MCC | 0.9363 / 0.9273 |
+| Macro ROC-AUC / PR-AUC | 0.9966 / 0.9801 |
+| Top-label ECE / multiclass Brier | 0.0270 / 0.0894 |
+| Minimum class recall | 83.0% (QuadrantFailure) |
+| Local ONNX CPU latency | 3.76 ms p50 / 10.72 ms p95 |
+| PyTorch/ONNX parity | Passed |
 
-```
-STDF Binary File
-      │
-      ▼
-┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│ STDF Parser  │────▶│ Wafer Map Gen    │────▶│ ResNet Classifier │
-│ (binary→die  │     │ (die coords →    │     │ (ImageNet → wafer │
-│  records)    │     │  300×300 RGB)    │     │  fine-tuned)     │
-└──────────────┘     └──────────────────┘     └────────┬─────────┘
-                                                       │
-                                                       ▼
-                                              Defect Class + Yield
-                                              Prediction + Confidence
-```
+Canonical evidence:
 
-## Defect Pattern Classes
+- [Confirmation evaluation](evidence/public_synthetic_evaluation.json)
+- [Dataset and split manifest](evidence/public_synthetic_dataset_manifest.json)
+- [Claim ledger](evidence/claims.json)
+- [PDF/repository audit](evidence/PDF_REPOSITORY_AUDIT.md)
+- [Metric improvement plan](evidence/METRIC_IMPROVEMENT_PLAN.md)
+- [Executed evidence notebook](notebooks/01_wafer_defect_classifier_walkthrough.ipynb)
 
-| Class | Description |
-|-------|-------------|
-| Normal | No systematic defect pattern |
-| EdgeEffect | Die failures concentrated at wafer edge |
-| CenterCluster | Defect cluster near wafer center |
-| RingPattern | Concentric ring-shaped failure band |
-| QuadrantFailure | Failures localized to one quadrant |
-| Scratch | Linear scratch damage across wafer |
-| RandomFailure | Spatially random die failures |
-| MixedMode | Multiple overlapping defect signatures |
+![Grouped confirmation metrics and class recall](docs/assets/confirmation_metrics.png)
 
-## Technical Approach
+## Selection Discipline
 
-- **STDF parsing**: Custom binary parser extracts wafer ID, lot ID, die coordinates, hard bins, and soft bins from STDF v4 records
-- **Wafer map generation**: Die-level results mapped onto 300×300 RGB images with bin-to-color encoding
-- **Transfer learning**: ResNet-18/50 backbone pretrained on ImageNet, fine-tuned for 8-class wafer pattern classification
-- **Serving**: FastAPI with async prediction endpoints, model versioning, and health monitoring
+The generator creates pattern families with fixed structural parameters and
+independent sample-level noise. Families and sample seeds are disjoint across:
 
-## Repository Structure
+- 1,920 training wafers: 24 families per class;
+- 480 validation wafers: 6 families per class;
+- 800 confirmation wafers: 10 unseen families per class.
 
-```
-├── src/
-│   ├── api/              # FastAPI app, inference engine, routes
-│   ├── data/             # STDF parser, wafer map generator
-│   ├── models/           # ResNet transfer learning, dataset class
-│   └── utils/            # Config loader, logging
-├── config/               # API and training configuration
-├── docker/               # Dockerfiles for API and frontend
-├── frontend/             # React dashboard (Vite + TypeScript)
-├── scripts/              # Deployment and setup scripts
-├── requirements.txt
-└── docker-compose.yml
-```
+Four regularization candidates were compared on validation macro F1. The selected
+head (`C=0.1`) and calibration temperature (`T=0.71947`) were frozen before the
+confirmation families were evaluated. Confirmation is not used for additional
+tuning.
 
-## Setup
+![Grouped split and selection flow](docs/assets/benchmark_design.png)
+
+## Failure Analysis
+
+QuadrantFailure is the confirmed tail at 83% recall. Eleven of 100 examples are
+classified as Scratch, reflecting the intended geometric ambiguity between a
+localized quadrant cluster and a broad directional defect. Normal recall is 89%;
+nine examples route to EdgeEffect. These errors remain visible rather than being
+hidden behind aggregate accuracy.
+
+![Normalized confirmation confusion matrix](docs/assets/confirmation_confusion_matrix.png)
+
+The confirmation families include structural and nuisance shifts across center,
+radius, ring width, scratch angle, edge location, brightness, noise, and defect
+probability. They are still synthetic and do not model fab-specific process,
+layout, tester, or annotation effects.
+
+![One unseen synthetic family per class](docs/assets/confirmation_samples.png)
+
+## Runtime Contract
+
+The deployed reference uses:
+
+- `models/onnx/public_synthetic_resnet18_v1.onnx`;
+- a metadata contract with class order, preprocessing, calibration, evidence ID,
+  and SHA-256;
+- startup verification of model, metadata, manifest, and confirmation hashes;
+- one `/api/v1/classify-image` endpoint for PNG/JPEG images up to 10 MiB;
+- API-key enforcement in production mode;
+- request IDs, readiness, liveness, and Prometheus metrics;
+- a non-root Chainguard container and a React control room.
+
+The STDF route, batch execution, model promotion, persistent results, Grad-CAM,
+and yield regression are intentionally unavailable. Unsupported legacy routes
+return HTTP 501 rather than simulated results.
+
+## Run Locally
+
+Use Python 3.11 or 3.12; the exact evidence dependencies require Python 3.11+.
+
+Install the public runtime:
 
 ```bash
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
+python -m pip install -r requirements-public.txt
+python -m uvicorn src.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-**Start the API:**
+Install and run the React control room:
+
 ```bash
-uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+cd frontend
+npm ci
+npm run dev
 ```
 
-**Start with Docker Compose (optional):**
+Run the complete evidence environment:
+
 ```bash
-docker-compose up -d
+python -m pip install -r requirements-evidence.txt
+pytest tests -q
+ruff check src scripts tests --select E,W,F --ignore E501
+python scripts/validate_evidence.py
 ```
 
-## API Endpoints
+Exact selection and confirmation recomputation:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/predict` | Classify a single wafer (STDF file or image) |
-| POST | `/api/v1/predict/batch` | Submit batch prediction job |
-| GET | `/api/v1/models` | List available model versions |
-| GET | `/api/v1/health` | Service and model health check |
+```bash
+python scripts/validate_evidence.py --recompute
+```
 
-## Results (WM-811K Real Data)
+Production reference:
 
-Trained on 35,519 labeled wafers from the [WM-811K dataset](https://www.kaggle.com/datasets/qingyi/wm811k-wafer-map) using 3-phase progressive fine-tuning on a ResNet-18 backbone pretrained on ImageNet.
+```bash
+export WAFER_CLASSIFIER_API_KEY="replace-with-a-secret"
+docker compose up --build
+```
 
-| Metric | Value |
-|--------|-------|
-| **Test Accuracy** | **89.0%** |
-| **Best Validation Accuracy** | 89.7% |
-| Dataset Split | 24,863 train / 5,327 val / 5,329 test |
-| Training Phases | Frozen head (5 ep) → Layer4 (5 ep) → Full (15 ep) |
-| ONNX Export | Validated, production-ready |
+## Historical WM-811K Boundary
 
-### Per-Class Performance
+The repository previously displayed 89.0% test accuracy and 89.7% validation
+accuracy for a 35,519-wafer WM-811K run. Those values are not current evidence:
+the source pickle, split manifest, result JSON, checkpoint, ONNX artifact, and
+locked environment are absent, and the historical script used a random row split
+without duplicate or lot isolation. The values remain classified as unsupported
+in the claim ledger and are excluded from the resume.
 
-| Defect Type | Precision | Recall | F1 Score | Support |
-|------------|-----------|--------|----------|---------|
-| Center | 96.6% | 94.8% | 95.7% | 652 |
-| Donut | 77.9% | 93.1% | 84.8% | 72 |
-| Edge-Loc | 90.6% | 88.2% | 89.4% | 821 |
-| Edge-Ring | 99.7% | 91.4% | 95.4% | 1,455 |
-| Loc | 83.9% | 79.2% | 81.5% | 528 |
-| Near-full | 62.5% | 55.6% | 58.8% | 18 |
-| Normal | 84.2% | 96.1% | 89.8% | 1,500 |
-| Random | 82.3% | 69.0% | 75.0% | 126 |
-| Scratch | 90.5% | 62.0% | 73.6% | 157 |
+## Lifecycle Truth
 
-> Near-full and Scratch classes have fewer training samples (149 and 1,193 respectively), which limits per-class performance. GPU-scale training with advanced augmentation (Mixup, CutMix) would improve these.
-
-## Requirements
-
-- Python 3.10+
-- PyTorch 2.x, ONNX Runtime
-- PostgreSQL 14+ (optional, for model metadata)
-- See `requirements.txt` for full list
+| Surface | State |
+|---|---|
+| Deterministic grouped synthetic generator | Implemented |
+| Validation-only selection and calibration | Implemented |
+| Disjoint grouped confirmation with uncertainty metrics | Implemented |
+| Hash-verified ONNX image classifier | Implemented |
+| Auth, request IDs, readiness, metrics, React UI, non-root container | Implemented |
+| Real WM-811K benchmark | Not reproduced |
+| Specification-tested STDF ingestion | Not implemented |
+| Wafer yield prediction | Not implemented |
+| Production silicon validation or measured business outcome | Not available |
+| Batch jobs, persistence, canary promotion, and rollback | Not implemented |
 
 ## License
 
-MIT
+Repository-owned code and independently generated synthetic artifacts are
+provided under the [MIT License](LICENSE). WM-811K data is not redistributed.

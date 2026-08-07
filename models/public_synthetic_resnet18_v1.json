@@ -1,0 +1,43 @@
+{
+  "model_version": "public_synthetic_resnet18_v1",
+  "task": "synthetic wafer-pattern classification",
+  "architecture": "ResNet-18 ImageNet frozen feature extractor with validation-selected linear head",
+  "class_names": [
+    "Normal",
+    "EdgeEffect",
+    "CenterCluster",
+    "RingPattern",
+    "QuadrantFailure",
+    "Scratch",
+    "RandomFailure",
+    "MixedMode"
+  ],
+  "input": {
+    "shape": [
+      null,
+      3,
+      96,
+      96
+    ],
+    "color_order": "RGB",
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ]
+  },
+  "calibration_temperature": 0.71946679000541,
+  "dataset_manifest_sha256": "b8b93f97cd2a7897873c7e091a9a5e2359f6448ca1227bbcc9671d64df7e03fc",
+  "onnx_sha256": "fca5a3dea9ec9b019476712bed3ead758e9ec5a290508836a21f669d7a13dcb6",
+  "evidence": "evidence/public_synthetic_evaluation.json",
+  "limitations": [
+    "Validated only on independently generated synthetic wafer maps.",
+    "Not evidence of WM-811K performance or production silicon behavior.",
+    "STDF parsing is outside the confirmed image-classification boundary."
+  ]
+}
