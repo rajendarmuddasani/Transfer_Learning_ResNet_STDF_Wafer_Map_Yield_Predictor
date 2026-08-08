@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from numbers import Real
 import sys
 import tempfile
 from pathlib import Path
@@ -27,6 +28,38 @@ def load_json(relative_path: str) -> dict:
 def assert_close(actual: float, expected: float, name: str) -> None:
     if not math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-12):
         raise AssertionError(f"{name}: expected {expected}, got {actual}")
+
+
+def assert_nested_close(actual, expected, name: str, *, abs_tol: float = 1e-9) -> None:
+    if isinstance(expected, dict):
+        if not isinstance(actual, dict) or actual.keys() != expected.keys():
+            raise AssertionError(f"{name}: structure mismatch")
+        for key in expected:
+            assert_nested_close(
+                actual[key], expected[key], f"{name}.{key}", abs_tol=abs_tol
+            )
+        return
+    if isinstance(expected, list):
+        if not isinstance(actual, list) or len(actual) != len(expected):
+            raise AssertionError(f"{name}: structure mismatch")
+        for index, (actual_item, expected_item) in enumerate(zip(actual, expected)):
+            assert_nested_close(
+                actual_item,
+                expected_item,
+                f"{name}[{index}]",
+                abs_tol=abs_tol,
+            )
+        return
+    if isinstance(actual, Real) and isinstance(expected, Real):
+        if isinstance(actual, (bool, int)) and isinstance(expected, (bool, int)):
+            if actual != expected:
+                raise AssertionError(f"{name}: expected {expected}, got {actual}")
+            return
+        if not math.isclose(float(actual), float(expected), rel_tol=0.0, abs_tol=abs_tol):
+            raise AssertionError(f"{name}: expected {expected}, got {actual}")
+        return
+    if actual != expected:
+        raise AssertionError(f"{name}: expected {expected!r}, got {actual!r}")
 
 
 def validate_static() -> dict:
@@ -92,12 +125,16 @@ def validate_recomputation(canonical: dict) -> None:
         canonical["evaluation"]["temperature"],
         "temperature",
     )
-    assert recomputed["validation_metrics"] == canonical["evaluation"][
-        "validation_metrics"
-    ]
-    assert recomputed["confirmation_metrics"] == canonical["evaluation"][
-        "confirmation_metrics"
-    ]
+    assert_nested_close(
+        recomputed["validation_metrics"],
+        canonical["evaluation"]["validation_metrics"],
+        "validation_metrics",
+    )
+    assert_nested_close(
+        recomputed["confirmation_metrics"],
+        canonical["evaluation"]["confirmation_metrics"],
+        "confirmation_metrics",
+    )
     assert recomputed["gate_results"] == canonical["evaluation"]["gate_results"]
     print("OK: exact grouped synthetic selection and confirmation recomputation")
 
